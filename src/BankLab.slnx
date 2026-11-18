@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="BankLab.Api/BankLab.Api.csproj" />
+    <Project Path="BankLab.Application/BankLab.Application.csproj" />
+    <Project Path="BankLab.Domain/BankLab.Domain.csproj" />
+    <Project Path="BankLab.Infrastructure/BankLab.Infrastructure.csproj" />
+  </Folder>
+</Solution>
