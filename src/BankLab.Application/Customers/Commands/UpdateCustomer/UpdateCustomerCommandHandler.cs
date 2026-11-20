@@ -23,6 +23,8 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         if(customer == null) throw new Exception($"Customer with Id {request.Id} not found.");
 
         customer.FullName = request.FullName;
+        customer.Email = request.Email;
+        customer.PhoneNo = request.PhoneNo;
         customer.FatherName = request.FatherName;
         customer.Address = request.Address;
         customer.DateOfBirth = request.DateOfBirth;
@@ -32,6 +34,7 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         {
             Id = customer.Id,
             FullName = customer.FullName,
+            Email = customer.Email,
             FatherName = customer.FatherName,
             PhoneNo = customer.PhoneNo,
             Address = customer.Address,
