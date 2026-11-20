@@ -6,4 +6,4 @@ using System.Text;
 
 namespace BankLab.Application.Customers.Commands;
 
-public record CreateCustomerCommand(string FullName, string Address, DateOnly DateOfBirth, string PhoneNo, string FatherName, string Nrc) : IRequest<CustomerDto>;
+public record CreateCustomerCommand(string FullName,string Email, string Address, DateOnly DateOfBirth, string PhoneNo, string FatherName, string Nrc) : IRequest<CustomerDto>;
