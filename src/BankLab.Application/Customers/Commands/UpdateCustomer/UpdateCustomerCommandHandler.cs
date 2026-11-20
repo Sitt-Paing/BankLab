@@ -9,7 +9,7 @@ using System.Text;
 
 namespace BankLab.Application.Customers.Commands.UpdateCustomer;
 
-public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerCommand, CustomerDto>
+public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerCommand, CustomerDto?>
 {
     private readonly IApplicationDbContext _context;
     public UpdateCustomerCommandHandler(IApplicationDbContext context)
@@ -17,9 +17,9 @@ public class UpdateCustomerCommandHandler : IRequestHandler<UpdateCustomerComman
         _context = context;
     }
 
-    public async Task<CustomerDto> Handle(UpdateCustomerCommand request, CancellationToken cancellationToken)
+    public async Task<CustomerDto?> Handle(UpdateCustomerCommand request, CancellationToken cancellationToken)
     {
-        Customer? customer = await _context.Customers.Where(x => !x.DeletedOn.HasValue).FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
+        Customer? customer = await _context.Customers.AsNoTracking().Where(x => !x.DeletedOn.HasValue).FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
         if(customer == null) throw new Exception($"Customer with Id {request.Id} not found.");
 
         customer.FullName = request.FullName;
