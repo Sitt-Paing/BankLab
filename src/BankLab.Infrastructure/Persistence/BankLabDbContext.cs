@@ -1,12 +1,10 @@
-﻿using BankLab.Domain.Entities;
+﻿using BankLab.Application.Common;
+using BankLab.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace BankLab.Infrastructure.Persistence;
 
-public class BankLabDbContext(DbContextOptions<BankLabDbContext> options) : DbContext(options)
+public class BankLabDbContext(DbContextOptions<BankLabDbContext> options) : DbContext(options), IApplicationDbContext
 {
     public virtual DbSet<Customer> Customers { get; set; }
 
