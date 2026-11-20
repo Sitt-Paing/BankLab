@@ -13,4 +13,5 @@ public class Customer : BaseAuditableEntity<long>
     public string PhoneNo { get; set; } = string.Empty;
     public string FatherName { get; set; } = string.Empty;
     public string Nrc { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
 }
