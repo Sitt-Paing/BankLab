@@ -1,4 +1,5 @@
-﻿using BankLab.Infrastructure.Persistence;
+﻿using BankLab.Application.Common;
+using BankLab.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,6 +19,8 @@ public static class DependencyInjection
         {
             options.UseSqlServer(connectionString);
         });
+
+        services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<IApplicationDbContext>());
 
         return services;
     }
