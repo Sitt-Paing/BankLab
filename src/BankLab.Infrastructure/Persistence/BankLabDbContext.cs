@@ -19,6 +19,7 @@ public class BankLabDbContext(
             entity.ToTable("Customers");
             entity.HasKey(e => e.Id);
             entity.Property(x => x.FullName).IsRequired().HasMaxLength(200);
+            entity.Property(x => x.Email).IsRequired().HasMaxLength(200);
             entity.Property(x => x.Address).IsRequired().HasMaxLength(500);
             entity.Property(x => x.FatherName).IsRequired().HasMaxLength(200);
             entity.Property(x => x.PhoneNo).IsRequired().HasMaxLength(100);
