@@ -1,4 +1,4 @@
-﻿using BankLab.Application.Common;
+﻿using BankLab.Application.Common.Interfaces;
 using BankLab.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
