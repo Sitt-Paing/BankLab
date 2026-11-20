@@ -1,4 +1,5 @@
-using BankLab.Application.Common;
+using BankLab.Application;
+using BankLab.Application.Common.Interfaces;
 using BankLab.Infrastructure;
 using BankLab.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -12,6 +13,7 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
