@@ -236,6 +236,15 @@ Local HTTPS လက်မှတ်ကို browser က မယုံကြည်�
 - **လက်ခံစံ** Anonymous call → 401၊ role မလုံလောက် → 403၊ cross-account request ကို API contract အတိုင်း deny လုပ်ရမယ်။ Denied actions မှာ business writes 0။ Logs ထဲ credentials၊ tokens နဲ့ raw KYC identifiers မပါရ။
 - **ဖတ်ရန်** [OWASP ASVS](https://asvs.owasp.org/) · [ASP.NET Core Resource-Based Authorization](https://learn.microsoft.com/en-us/aspnet/core/security/authorization/resourcebased)
 
+#### BankLab login၊ browser session နှင့် audit အတွက် design ဆုံးဖြတ်ချက်
+
+InventoryManagementSystem ကဲ့သို့ Api က authentication middleware နှင့် browser protections ကို ချိတ်ပြီး Infrastructure က identity integration၊ Application က permission နှင့် ownership စစ်ဆေးမှုကို ကိုင်မယ်။ အောက်ပါအဆင့်တွေကို ကိုယ်တိုင်ထည့်ပြီး flow ပြည့်မှ စုပေါင်းစမ်းပါ။
+
+1. **Login** — သီးခြား OpenID Connect identity provider ကို ရွေးပါ။ Teller login အတွက် MFA၊ web client အတွက် authorization code + PKCE သုံးပါ။ API က issuer၊ audience၊ signature၊ expiry တို့ကို စစ်ပြီး provider ရဲ့ public keys နဲ့ signing-key rotation ကို လက်ခံနိုင်ရမယ်။ Inventory ရဲ့ shared-secret token issuer နဲ့ fallback key ကို BankLab production design ထဲ မယူပါ။ [Microsoft JWT bearer guidance](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication)
+2. **Browser** — Angular နှင့် same-origin backend-for-frontend (BFF) သုံးမယ်။ Access/refresh tokens ကို server ဘက်မှာ ထိန်းပြီး browser ကို Secure၊ HttpOnly session cookie ပေးမယ်။ State-changing requests မှာ Inventory ရဲ့ X-XSRF-TOKEN header ပုံစံကို ဆက်သုံးပြီး server မှာ antiforgery token pair စစ်ပါ။ Logout မှာ session ပိတ်၍ idle/absolute expiry ကို policy နဲ့သတ်မှတ်ပါ။ [Microsoft antiforgery guidance](https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery)
+3. **Authorization နှင့် audit** — Customer ပိုင်ဆိုင်မှု၊ teller permissions၊ maker/checker ခွဲခြားမှုကို server ဘက်မှာ စစ်ပါ။ Audit event မှာ immutable actor ID (issuer + subject)၊ လုပ်ဆောင်ချိန် username၊ UTC time၊ action၊ outcome နှင့် correlation ID ထည့်ပါ။ Customer row ရဲ့ CreatedBy အပြင် ပြင်ဆင်ခွင့်ကန့်သတ်ထားသော append-only audit history ကို စီစဉ်ပါ။
+4. **Secrets နှင့် verification** — dotnet user-secrets ကို local development အတွက် သုံးပြီး deployment မှာ managed secret store သုံးပါ။ Permission မရှိသော teller၊ အခြား customer account၊ CSRF token ပျောက်မှု၊ expired session၊ self-approval တို့ကို ပယ်ရမယ်။ အောင်မြင်သောလုပ်ဆောင်မှုကို actor ID နဲ့ audit ထိ ချိတ်ပြနိုင်ရမယ်။ Partner/open-banking API ထည့်လာရင် သီးခြား FAPI profile နှင့် ကိုက်ညီမှုကို လေ့လာပါ။ [OpenID Foundation FAPI 2.0](https://openid.net/specs/fapi-security-profile-2_0-final.html)
+
 ### ပတ် 13 — Messaging၊ transactional outbox နှင့် inbox
 
 - **ရည်မှန်းချက်** Broker ပျက်ခြင်း၊ message ပြန်ဝင်ခြင်းတွေကြားမှာ business state ကို တည်ငြိမ်စွာ ထိန်းနိုင်မယ်။
