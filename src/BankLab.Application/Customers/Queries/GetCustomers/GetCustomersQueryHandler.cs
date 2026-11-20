@@ -2,9 +2,6 @@
 using BankLab.Application.Customers.DTOs;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace BankLab.Application.Customers.Queries.GetCustomers;
 
@@ -39,6 +36,5 @@ public class GetCustomersQueryHandler : IRequestHandler<GetCustomersQuery, List<
                 DeletedBy = x.DeletedBy
             })
             .ToListAsync(cancellationToken);
-       
     }
 }
