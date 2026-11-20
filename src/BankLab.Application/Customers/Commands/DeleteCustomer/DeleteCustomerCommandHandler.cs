@@ -30,6 +30,7 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
         {
             Id = customer.Id,
             FullName = customer.FullName,
+            Email = customer.Email,
             Address = customer.Address,
             DateOfBirth = customer.DateOfBirth,
             PhoneNo = customer.PhoneNo,
