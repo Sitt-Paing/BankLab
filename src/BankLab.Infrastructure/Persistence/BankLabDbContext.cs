@@ -1,8 +1,8 @@
-﻿using BankLab.Application.Common;
+﻿using BankLab.Application.Common.Interfaces;
 using BankLab.Domain.Common;
 using BankLab.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-    
+
 namespace BankLab.Infrastructure.Persistence;
 
 public class BankLabDbContext(
