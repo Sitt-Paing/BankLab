@@ -33,6 +33,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         {
             Id = customer.Id,
             FullName = customer.FullName,
+            Email = customer.Email,
             Address = customer.Address,
             DateOfBirth = customer.DateOfBirth,
             PhoneNo = customer.PhoneNo,
