@@ -21,6 +21,8 @@ public class BankLabDbContext(DbContextOptions<BankLabDbContext> options) : DbCo
             entity.Property(x => x.FatherName).IsRequired().HasMaxLength(200);
             entity.Property(x => x.PhoneNo).IsRequired().HasMaxLength(100);
             entity.Property(x => x.Nrc).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.DateOfBirth).IsRequired();
+            entity.Property(x => x.IsActive).IsRequired();
             entity.Property(e => e.CreatedBy).HasMaxLength(50);
             entity.Property(e => e.CreatedOn).HasColumnType("datetime");
             entity.Property(e => e.UpdatedBy).HasMaxLength(50);
