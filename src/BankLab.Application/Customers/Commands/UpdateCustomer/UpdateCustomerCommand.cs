@@ -6,4 +6,4 @@ using System.Text;
 
 namespace BankLab.Application.Customers.Commands.UpdateCustomer;
 
-public record UpdateCustomerCommand(long Id, string FullName, string Address, DateOnly DateOfBirth, string PhoneNo, string FatherName, string Nrc) : IRequest<CustomerDto?>;
+public record UpdateCustomerCommand(long Id, string FullName,string Email, string Address, DateOnly DateOfBirth, string PhoneNo, string FatherName, string Nrc) : IRequest<CustomerDto?>;
