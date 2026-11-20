@@ -20,6 +20,7 @@ public class CreateCustomerCommandHandler : IRequestHandler<CreateCustomerComman
         var customer = new Customer
         {
             FullName = request.FullName,
+            Email = request.Email,
             Address = request.Address,
             DateOfBirth = request.DateOfBirth,
             PhoneNo = request.PhoneNo,
