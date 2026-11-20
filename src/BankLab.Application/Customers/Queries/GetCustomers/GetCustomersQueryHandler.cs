@@ -24,6 +24,7 @@ public class GetCustomersQueryHandler : IRequestHandler<GetCustomersQuery, List<
             {
                 Id = x.Id,
                 FullName = x.FullName,
+                Email = x.Email,
                 Address = x.Address,
                 DateOfBirth = x.DateOfBirth,
                 PhoneNo = x.PhoneNo,
