@@ -1,4 +1,4 @@
-﻿using BankLab.Application.Common;
+﻿using BankLab.Application.Common.Interfaces;
 using BankLab.Application.Customers.DTOs;
 using BankLab.Domain.Entities;
 using MediatR;
