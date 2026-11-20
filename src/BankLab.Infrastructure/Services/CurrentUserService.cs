@@ -1,4 +1,4 @@
-﻿using BankLab.Application.Common;
+﻿using BankLab.Application.Common.Interfaces;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
