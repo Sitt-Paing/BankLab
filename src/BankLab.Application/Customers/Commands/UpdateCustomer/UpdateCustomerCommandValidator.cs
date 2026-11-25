@@ -19,7 +19,6 @@ public class UpdateCustomerCommandValidator : AbstractValidator<UpdateCustomerCo
         RuleFor(x => x.PhoneNo).NotEmpty().MaximumLength(100);
         RuleFor(x => x.FatherName).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Nrc).NotEmpty().MaximumLength(100);
-
         RuleFor(x => x.DateOfBirth)
             .NotEmpty()
             .LessThanOrEqualTo(_ => DateOnly.FromDateTime(DateTime.Today))
