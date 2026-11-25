@@ -5,7 +5,7 @@ using System.Text;
 
 namespace BankLab.Domain.Entities;
 
-public class Customer : BaseAuditableEntity<long>
+public class Customer : BaseAuditableEntity<Guid>
 {
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
