@@ -6,7 +6,7 @@ namespace BankLab.Application.Customers.DTOs;
 
 public record class CustomerDto
 {
-    public long Id { get; set; }
+    public Guid Id { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
