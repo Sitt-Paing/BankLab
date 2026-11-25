@@ -3,4 +3,4 @@ using MediatR;
 
 namespace BankLab.Application.Customers.Queries.GetCustomerById;
 
-public record GetCustomerByIdQuery(long Id) : IRequest<CustomerDto?>;
+public record GetCustomerByIdQuery(Guid Id) : IRequest<CustomerDto?>;
