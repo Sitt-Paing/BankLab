@@ -38,44 +38,23 @@ public class BankLabDbContext(
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var addedEntries = ChangeTracker
-        .Entries<BaseAuditableEntity<long>>()
-        .Where(entry => entry.State == EntityState.Added)
-        .ToList();
-
-        if(addedEntries.Count > 0)
+        foreach (var entry in ChangeTracker.Entries<IAuditableEntity>().ToList())
         {
-            foreach (var entry in addedEntries)
+            switch (entry.State)
             {
-                entry.Entity.CreatedOn = DateTime.Now;
-                entry.Entity.CreatedBy = currentUserService.UserName;
-            }
-        }
-
-        var modifiedEntries = ChangeTracker.Entries<BaseAuditableEntity<long>>()
-            .Where(entry => entry.State == EntityState.Modified)
-            .ToList();
-
-        if (modifiedEntries.Count > 0)
-        {
-            foreach (var entry in modifiedEntries)
-            {
-                entry.Entity.UpdatedOn = DateTime.Now;
-                entry.Entity.UpdatedBy = currentUserService.UserName;
-            }
-        }
-
-        var deletedEntries = ChangeTracker.Entries<BaseAuditableEntity<long>>()
-            .Where(entry => entry.State == EntityState.Deleted)
-            .ToList();
-
-        if (deletedEntries.Count > 0)
-        {
-            foreach (var entry in deletedEntries)
-            {
-                entry.State = EntityState.Modified;
-                entry.Entity.DeletedOn = DateTime.Now;
-                entry.Entity.DeletedBy = currentUserService.UserName;
+                case EntityState.Added:
+                    entry.Entity.CreatedOn = DateTime.Now;
+                    entry.Entity.CreatedBy = currentUserService.UserName;
+                    break;
+                case EntityState.Modified:
+                    entry.Entity.UpdatedOn = DateTime.Now;
+                    entry.Entity.UpdatedBy = currentUserService.UserName;
+                    break;
+                case EntityState.Deleted:
+                    entry.State = EntityState.Modified;
+                    entry.Entity.DeletedOn = DateTime.Now;
+                    entry.Entity.DeletedBy = currentUserService.UserName;
+                    break;
             }
         }
 
