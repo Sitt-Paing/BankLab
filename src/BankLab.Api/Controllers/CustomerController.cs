@@ -23,7 +23,7 @@ public class CustomerController(ISender sender) : ControllerBase
 
     [HttpGet("{id}")]
     [EndpointSummary("Get a customer by ID.")]
-    public async Task<ActionResult<CustomerDto>> GetCustomerById(long id, CancellationToken cancellationToken)
+    public async Task<ActionResult<CustomerDto>> GetCustomerById(Guid id, CancellationToken cancellationToken)
     {
         var customer = await sender.Send(new GetCustomerByIdQuery(id), cancellationToken);
         if(customer is null)
