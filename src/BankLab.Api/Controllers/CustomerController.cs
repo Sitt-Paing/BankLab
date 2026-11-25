@@ -64,7 +64,13 @@ public class CustomerController(ISender sender) : ControllerBase
     [EndpointSummary("Delete a customer by ID.")]
     public async Task<ActionResult> DeleteCustomer(Guid id, CancellationToken cancellationToken)
     {
-        await sender.Send(new DeleteCustomerCommand(id), cancellationToken);
-        return Ok();
+        CustomerDto? customer = await sender.Send(new DeleteCustomerCommand(id), cancellationToken);
+
+        if (customer is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(customer);
     }
 }
