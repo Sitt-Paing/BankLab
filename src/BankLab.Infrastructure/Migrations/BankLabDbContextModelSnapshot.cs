@@ -16,7 +16,7 @@ partial class BankLabDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261120081032_InitialDatabasecolUpdate";
+    public override string LastMigrationId => "20261125050107_UseGuidCustomerId";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -29,11 +29,9 @@ partial class BankLabDbContextModelSnapshot : ModelSnapshot
 
         modelBuilder.Entity("BankLab.Domain.Entities.Customer", b =>
             {
-                var id = b.Property<long>("Id")
+                b.Property<Guid>("Id")
                     .ValueGeneratedOnAdd()
-                    .HasColumnType("bigint");
-
-                SqlServerPropertyBuilderExtensions.UseIdentityColumn(id);
+                    .HasColumnType("uniqueidentifier");
 
                 b.Property<string>("Address")
                     .IsRequired()
