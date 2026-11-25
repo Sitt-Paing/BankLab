@@ -20,9 +20,9 @@ public class DeleteCustomerCommandHandler : IRequestHandler<DeleteCustomerComman
     public async Task<CustomerDto?> Handle(DeleteCustomerCommand request, CancellationToken cancellationToken)
     {
         Customer? customer = await _context.Customers.AsNoTracking().Where(x => !x.DeletedOn.HasValue).FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
-        if (customer == null)
+        if (customer is null)
         {
-            throw new KeyNotFoundException($"Customer with Id {request.Id} not found.");
+            return null;
         }
         _context.Customers.Remove(customer);
         await _context.SaveChangesAsync(cancellationToken);
