@@ -6,4 +6,4 @@ using System.Text;
 
 namespace BankLab.Application.Customers.Commands.DeleteCustomer;
 
-public record DeleteCustomerCommand(long Id) : IRequest<CustomerDto?>;
+public record DeleteCustomerCommand(Guid Id) : IRequest<CustomerDto?>;
