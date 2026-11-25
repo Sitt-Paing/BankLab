@@ -10,7 +10,11 @@ public class UpdateCustomerCommandValidator : AbstractValidator<UpdateCustomerCo
     public UpdateCustomerCommandValidator()
     {
         RuleFor(x => x.FullName).NotEmpty().MaximumLength(200);
-        RuleFor(x => x.Email).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Email)
+            .Cascade(CascadeMode.Stop)
+            .NotEmpty()
+            .EmailAddress()
+            .MaximumLength(200);
         RuleFor(x => x.Address).NotEmpty().MaximumLength(500);
         RuleFor(x => x.PhoneNo).NotEmpty().MaximumLength(100);
         RuleFor(x => x.FatherName).NotEmpty().MaximumLength(200);
