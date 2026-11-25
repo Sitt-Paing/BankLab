@@ -4,7 +4,7 @@ using System.Text;
 
 namespace BankLab.Domain.Common;
 
-public abstract class BaseAuditableEntity<TId> : BaseEntity<TId>
+public abstract class BaseAuditableEntity<TId> : BaseEntity<TId>, IAuditableEntity
 {
     public DateTime? CreatedOn { get; set; }
     public string? CreatedBy { get; set; }
