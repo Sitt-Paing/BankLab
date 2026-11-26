@@ -1,6 +1,8 @@
 ﻿using BankLab.Application.Common.Interfaces;
 using BankLab.Domain.Common;
 using BankLab.Domain.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace BankLab.Infrastructure.Persistence;
@@ -8,12 +10,13 @@ namespace BankLab.Infrastructure.Persistence;
 public class BankLabDbContext(
     DbContextOptions<BankLabDbContext> options,
     ICurrentUserService currentUserService
-    ) : DbContext(options), IApplicationDbContext
+    ) : IdentityDbContext<IdentityUser<Guid>, IdentityRole<Guid>, Guid>(options), IApplicationDbContext
 {
     public virtual DbSet<Customer> Customers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.Entity<Customer>(entity =>
         {
             entity.ToTable("Customers");
