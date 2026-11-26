@@ -2,6 +2,7 @@ using BankLab.Api.Middleware;
 using BankLab.Application;
 using BankLab.Application.Common.Interfaces;
 using BankLab.Infrastructure;
+using BankLab.Infrastructure.Persistence;
 using BankLab.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Scalar.AspNetCore;
@@ -30,6 +31,10 @@ app.UseExceptionHandler();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    using var scope = app.Services.CreateScope();
+    var initializer = scope.ServiceProvider.GetRequiredService<BankLabDbContextInitializer>();
+    await initializer.SeedRolesAsync();
+
     app.MapOpenApi();
     app.MapScalarApiReference("/docs/scalar");
 }
