@@ -6,6 +6,8 @@ Banking Academy Lesson 1 ရဲ့ ဘဏ်လုပ်ငန်းအခြေ
 **ကြိုတင်သိထားသင့်တာ** C# class/async၊ HTTP/JSON၊ SQL JOIN/aggregate၊ TypeScript နှင့် Git အခြေခံ။ ပထမပတ်မှာ API တစ်ခု run လုပ်၊ SQL query တစ်ခုရေး၊ Angular မှာ JSON ပြနိုင်ခြင်းဖြင့် အခြေခံစစ်ပါ။  
 **Capstone** BankLab ဆိုတဲ့ single-currency retail banking simulator။ ဖန်တီးထားသော customer data၊ test balance၊ mock payment provider နဲ့ staging environment ကို သုံးပါ။ FX၊ loan servicing၊ card network integration နဲ့ jurisdiction အလိုက် စည်းမျဉ်းအကောင်အထည်ဖော်ခြင်းကို နောက်ဆက်တွဲအဖြစ်ထားပါ။
 
+> **တစ်ဆင့်ချင်းစသင်ရန်:** [C# → Program.cs → DI internals → banking labs](#banklab-incremental-course) ကို အရင်ဖတ်ပါ။ လက်ရှိ project စစ်ဆေးချက်နှင့် အစောပိုင်းနမူနာများ၏ ကွာခြားချက်တွေကို အဲဒီအပိုင်းမှာ မှတ်ထားသည်။
+
 ## အပတ်စဉ် အချိန်ဇယား
 
 | ရက် | နာရီ | လုပ်ရမည့်အရာ |
@@ -350,3 +352,410 @@ InventoryManagementSystem ကဲ့သို့ Api က authentication middlewar
 - Acceptance check ရလဒ်နှင့် dataset —
 - မအောင်မြင်သေးသည့် case နှင့် ပြန်စမ်းမည့်နည်း —
 - နောက်အပတ်မစမီ ပြီးရမည့်အလုပ် —
+
+
+<a id="banklab-incremental-course"></a>
+
+<!-- banklab-incremental-course:start -->
+
+## C# မှ BankLab internals အထိ — တစ်ဆင့်ချင်း သင်ယူမည့် လမ်းကြောင်း
+
+### လက်ရှိ project ကို အရင်သိပါ — ၂၀၂၆-၁၁-၂၆ စစ်ဆေးချက်
+
+ဒီအပိုင်းကို မူလ ၁၆ ပတ် roadmap၊ milestones နဲ့ tracker တွေကို ဆက်သုံးရင်း အခြေခံကစ၍ လေ့ကျင့်နိုင်ဖို့ ထည့်ထားပါတယ်။ အပေါ်က “ကြိုတင်သိထားသင့်တာ” မတတ်သေးရင် အောက်က L01–L04 ကို အရင်လုပ်ပါ။ သင်ခန်းစာတစ်ခု မပြီးမချင်း နောက်အဆင့်မတက်ပါနှင့်။ ၁၆ ပတ်/၂၈၈ နာရီက မူလခန့်မှန်းချက်ဖြစ်ပြီး အခြေခံဖြည့်ချိန်ကို သီးခြားမှတ်ပါ။ အလျင်လို၍ သင်ခန်းစာအားလုံးကို တစ်ပတ်ထဲ မထည့်ပါနှင့်။
+
+စစ်ဆေးထားသော repository: [Sitt-Paing/BankLab — 88f71d13](https://github.com/Sitt-Paing/BankLab/tree/88f71d13d6a020c9a664a22be592c3c0d1ac623a)။ အောက်က **လက်ရှိရှိပြီးသား** နဲ့ **နောက် lab မှာထည့်မည့်အရာ** ကို ခွဲဖတ်ပါ။
+
+| စစ်ခဲ့သောဖိုင် | လက်ရှိတွေ့ရှိချက် | သင်ယူမည့်နေရာ |
+|---|---|---|
+| `src/BankLab.slnx` နှင့် project ၄ ခု၏ `.csproj` | Api၊ Application၊ Domain၊ Infrastructure အားလုံး `net11.0`၊ nullable/implicit usings ဖွင့်ထားသည်။ `global.json` နှင့် `LangVersion` override မရှိ။ | L00၊ L01 |
+| Api / Infrastructure `.csproj` | Microsoft OpenAPI၊ EF Core၊ SQL Server၊ Identity၊ JWT packages `11.0.0`။ Scalar `3.0.1`။ | L05၊ L08 |
+| Application `.csproj` | MediatR `15.0.0`၊ FluentValidation `12.2.0`။ | L04၊ L09 |
+| `Api/Program.cs` | Controllers၊ OpenAPI၊ Application/Infrastructure registrations၊ current user၊ JWT bearer၊ authorization၊ exception handler၊ Development role seeding ရှိသည်။ | L05–L08 |
+| Application / Infrastructure `DependencyInjection.cs` | Validator/handler scanning၊ open generic validation behavior၊ scoped DbContext/interface alias၊ Identity role stores ရှိသည်။ | L06၊ L07၊ L09 |
+| `Domain/Entities/Customer.cs` | `BaseAuditableEntity<Guid>` မှ ဆင်းသက်သည်။ Customer CRUD နဲ့ DTO ရှိသည်။ | L02–L04 |
+| `Infrastructure/Persistence/BankLabDbContext.cs` | `IdentityDbContext<IdentityUser<Guid>, IdentityRole<Guid>, Guid>`၊ Customers၊ audit override ရှိသည်။ | L07၊ L09 |
+| `Infrastructure/Migrations/` | Customer Guid ပြောင်းထားသည့် migration နှင့် `20261126034658_AddIdentityTables` အထိ ရှိသည်။ | L09 |
+| Repository tree | Banking account/ledger/transfer implementations၊ test project နဲ့ Angular project မရှိသေး။ | L10–L13 တွင် တည်ဆောက်ရန် |
+
+**မူလစာသားနှင့် လက်ရှိ code မတူသောနေရာများ** — အပေါ်ပိုင်း setup ထဲက `/weatherforecast` က template အစောပိုင်းနမူနာပါ။ လက်ရှိ controller route သည် `/api/customers` ဖြစ်ပြီး `[Authorize]` ပါသည်။ Identity tables က migration ထဲ ရှိပြီးသား၊ `Customer.Id` နဲ့ Identity keys က `Guid` ဖြစ်သည်။ `Database-Design.md` ထဲက `bigint`/string keys၊ `ApplicationUser.CustomerId` ချိတ်ဆက်မှုတွေက အဆိုပြု design ဖြစ်ပြီး လက်ရှိ implemented model ဟု မယူပါနှင့်။ Guid keys ကို လက်ရှိ baseline အဖြစ်ယူ၍ banking schema တိုးမည့်အခါ design ကို ပြန်ညှိပါ။ ဒီ roadmap ပြင်ဆင်မှုက application code၊ packages၊ schema ကို မပြောင်းပါ။
+
+### သင်ခန်းစာတိုင်း၏ သင်ကြားပုံ
+
+အစဉ်ကို **လုပ်ငန်းပြဿနာ → syntax တစ်ကြောင်းချင်း → code ဘာကြောင့်လို → runtime မှာ ဘာဖြစ် → ကိုယ်တိုင်ရေး → debugger/စမ်းသပ်ချက် → မိမိစကားဖြင့် ပြန်ရှင်း** အတိုင်းသွားမယ်။ သင်ခန်းစာတိုင်းမှာ လက်ရှိဖိုင်လမ်းကြောင်း၊ ပြင်မည့်နေရာ၊ compile/run နည်း၊ မျှော်မှန်းရလဒ်၊ အမှားတစ်ခုဖြစ်အောင် စမ်းနည်းနဲ့ official link ပါရမယ်။ Snippet ကို အကုန်ကူးမထည့်ခင် variable၊ parameter၊ return value တစ်ခုချင်း ရှင်းပြနိုင်ရမယ်။
+
+| အစဉ် | ဘယ်အချိန်လုပ်မလဲ | အဓိကသင်ခန်းစာ / BankLab lab | ပြီးမြောက်မှု evidence |
+|---|---|---|---|
+| L00 | ပတ် ၁ မစမီ | SDK၊ solution၊ packages၊ startup ကိုစစ် | Version နှင့် file map |
+| L01 | ပတ် ၁ မစမီ | Variables၊ types၊ operators၊ control flow | Console cash-deposit calculation |
+| L02 | ပတ် ၁–၂ | Methods၊ parameters၊ returns၊ exceptions | Deposit rule method နှင့် boundary cases |
+| L03 | ပတ် ၁–၃ | Class၊ record၊ interface၊ constructor၊ generics | Customer → DTO → constructor trace |
+| L04 | ပတ် ၂–၄ | Collections၊ LINQ၊ async/await၊ cancellation | Query ကို SQL/I/O အထိ trace |
+| L05 | ပတ် ၁ တွင်ဖတ်၊ L04 ပြီးမှ deep dive | `Program.cs`၊ host၊ config၊ startup | Startup flow diagram |
+| L06 | ပတ် ၄ | `IServiceCollection`၊ extension method၊ descriptor | Registration list ကို debugger ဖြင့်ကြည့် |
+| L07 | ပတ် ၄–၅ | Provider၊ constructor graph၊ lifetime၊ disposal | Same/different scope experiment |
+| L08 | ပတ် ၄–၅ | Middleware၊ routing၊ auth၊ errors | Before/after trace၊ 401/422/404 |
+| L09 | ပတ် ၄–၅ | Customer request အစအဆုံး၊ EF၊ DTO၊ validation | Request → SQL → response trace |
+| L10 | ပတ် ၂–၅ နှင့်တွဲ | Money၊ journals၊ GL/subledger | Deposit posting နှင့် invariant checks |
+| L11 | ပတ် ၅–၇ | Transfer၊ transaction၊ idempotency၊ concurrency | Duplicate/race/rollback evidence |
+| L12 | ပတ် ၈–၁၂ | UI၊ ownership၊ payment၊ reversal၊ reconciliation | မူလပတ် ၈–၁၂ acceptance checks |
+| L13 | ပတ် ၁၃–၁၆ | Worker scope၊ outbox၊ cache၊ telemetry၊ recovery | မူလ milestones နှင့် capstone |
+
+### L00 — ပြောင်းလဲမှုမလုပ်မီ version နှင့် file map
+
+BankLab root ကနေ အောက်က read-only commands ကို run ပါ။ SDK version၊ target framework၊ NuGet package version သုံးခုက မတူပါ။ `net11.0` ဆိုတာ target ဖြစ်ပြီး installed SDK ရှိကြောင်း အာမမခံပါ။ စစ်ဆေးသည့် ဒီစက်မှာ SDK `10.0.302`/`10.0.303` သာရှိသဖြင့် BankLab `net11.0` build/run ကို ဒီနေရာမှာ အတည်မပြုထားပါ။ Target ကို 10 သို့ လျှော့ပြီး error ဖုံးမထားပါနှင့်။
+
+```powershell
+dotnet --list-sdks
+dotnet --version
+dotnet sln src/BankLab.slnx list
+Get-ChildItem src -Recurse -Filter *.csproj | Get-Content
+Get-Content src/BankLab.Api/Program.cs
+```
+
+ကိုက်ညီသော .NET 11 SDK၊ local configuration နှင့် lab database ပြင်ဆင်ပြီးမှ `dotnet restore src/BankLab.slnx`၊ `dotnet build src/BankLab.slnx`၊ `dotnet run --project src/BankLab.Api --launch-profile https` လုပ်ပါ။ Development startup က role seed လုပ်သဖြင့် connection string၊ database နှင့် applied Identity migrations လိုသည်။ လက်ရှိ `Program.cs` က migrations ကို အလိုအလျောက် apply မလုပ်ပါ။ Initial migration အသစ်ထပ်မထုတ်ခင် ရှိပြီးသား migration history ကိုဖတ်ပါ။
+
+**Lab** — Project reference arrow ဆွဲပါ: Api → Application/Domain/Infrastructure၊ Infrastructure → Application/Domain၊ Application → Domain။ `PackageReference` က library ကို build မှာသုံးနိုင်စေတယ်။ DI registration က runtime မှာ object ဘယ်လိုရမလဲ သတ်မှတ်တယ်။ နှစ်ခုလုံး ဘာကြောင့်လိုသလဲ ရှင်းပါ။
+
+**ဖတ်ရန်** — [SDK selection နှင့် global.json](https://learn.microsoft.com/en-us/dotnet/core/tools/global-json) · [.NET 11 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/11.0)။
+
+### L01 — Syntax ကို ငွေသွင်းနမူနာဖြင့် စပါ
+
+သီးသန့် console lab ထဲက `Program.cs` အတွက် runnable snippet ပါ။ လက်ရှိ API `Program.cs` ကို ဒီ snippet နဲ့ အစားမထိုးပါနှင့်။ ပထမဆုံး variable နှင့် expression ကို မြင်ဖို့သာဖြစ်ပြီး database ထဲ ငွေစာရင်းတင်သည့် implementation မဟုတ်သေးပါ။
+
+```csharp
+decimal openingBalance = 1000.00m;
+decimal deposit = 250.00m;
+bool isActive = true;
+string accountNumber = "A-001";
+
+if (isActive && deposit > 0m)
+{
+    decimal closingBalance = openingBalance + deposit;
+    Console.WriteLine($"{accountNumber}: {closingBalance:F2}");
+}
+else
+{
+    Console.WriteLine("Deposit rejected");
+}
+```
+
+`decimal` က type၊ `openingBalance` က variable အမည်၊ `=` က assignment၊ `1000.00m` က decimal literal၊ `;` က statement အဆုံးပါ။ `var` သုံးလျှင် compiler က initializer မှ type သတ်မှတ်ပေးတယ်။ `dynamic` လို runtime မှာ type ရွေးတာ မဟုတ်ပါ။ `&&` သည် ဘယ်ဘက် false ဖြစ်ရင် ညာဘက်ကို ဆက်မတွက်သော conditional AND ဖြစ်တယ်။ `{ }` က block နဲ့ local variable scope သတ်မှတ်တယ်။ `$"..."` က interpolation၊ `F2` က display format သာဖြစ်ပြီး သိမ်းမယ့် amount precision စည်းမျဉ်း မဟုတ်ပါ။
+
+**Deep dive** — Decimal fractions ကို `decimal` ဖြင့် ကိုယ်စားပြုနိုင်မှုက binary floating point နဲ့ ကွာတယ်။ `decimal` သုံးရုံနဲ့ currency၊ rounding၊ maximum amount မဆုံးဖြတ်ရသေးပါ။ MMK lab အတွက် decimal places နှင့် rounding policy ကို သီးခြားသတ်မှတ်ပါ။ `Guid` က identifier၊ `DateOnly` က မွေးရက်လို date၊ `DateTime` က audit timestamp လို့ လက်ရှိ Customer model နဲ့ ပြန်ချိတ်ပါ။ Value/reference types ကို “stack/heap တစ်မျိုးစီ” ဟု အလွယ်မမှတ်ဘဲ assignment/copy/reference semantics ကနေ အရင်လေ့လာပါ။
+
+**Lab နှင့်ပြီးမြောက်မှု** — Output `A-001: 1250.00` ရရမယ်။ Deposit ကို `0m`၊ negative၊ inactive account သို့ပြောင်းလျှင် rejected branch ဝင်ရမယ်။ `for` နဲ့ daily deposits၊ `foreach` နဲ့ account list၊ `switch` နဲ့ account status ကို ထပ်ရေးပါ။ `=` နှင့် `==`၊ `decimal` နှင့် `double`၊ block အတွင်း/အပြင် variable scope ကို မိမိစကားဖြင့် ရှင်းပါ။
+
+**Official docs** — [C# အခြေခံ](https://learn.microsoft.com/en-us/dotnet/csharp/tour-of-csharp/) · [Numeric types နှင့် decimal](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/floating-point-numeric-types)။
+
+### L02 — Method ဆိုတာ ဘာလဲ၊ ဘာကို ယူပြီး ဘာပြန်ပေးလဲ
+
+L01 console lab ထဲမှာ ထပ်ရေးပါ။ ပထမ `Console.WriteLine` call ပြီးနောက် local function declaration ကိုထားနိုင်တယ်။ ဒီ method က တွက်ချက်မှုသာလုပ်ပြီး ledger posting မလုပ်ပါ။
+
+```csharp
+Console.WriteLine(CalculateDepositBalance(1000m, 250m)); // 1250
+
+static decimal CalculateDepositBalance(decimal balance, decimal amount)
+{
+    if (amount <= 0m)
+    {
+        throw new ArgumentOutOfRangeException(nameof(amount));
+    }
+
+    return balance + amount;
+}
+```
+
+`static` က instance မလိုကြောင်း၊ `decimal` က return type၊ `CalculateDepositBalance` က method အမည်၊ parentheses ထဲက `balance`/`amount` က parameters ဖြစ်တယ်။ Call မှာပေးတဲ့ `1000m`/`250m` က arguments ပါ။ `return` က တန်ဖိုးပြန်ပြီး method အဆုံးသတ်တယ်။ `void` က တန်ဖိုးမပြန်သည့် method၊ constructor မှာ return type မရေးပါ။ `nameof(amount)` က parameter နာမည်ကို compiler က string အဖြစ်ပေးတယ်။ Method signature ကို လေ့လာရာမှာ return type တစ်ခုတည်းပြောင်းပြီး overload လုပ်လို့မရကြောင်း စမ်းပါ။
+
+**Deep dive** — ပုံမှန် parameters တွေကို value ဖြင့်ပို့တယ်။ Reference type အတွက်လည်း reference တန်ဖိုးရဲ့ copy ကို ပို့တာဖြစ်လို့ object member ပြင်ခြင်းနဲ့ parameter ကို object အသစ်သို့ assignment လုပ်ခြင်း အကျိုးသက်ရောက်မှု မတူပါ။ `ref`၊ `out` ကို နောက် lab မှာ ရည်ရွယ်ချက်ရှိမှ သုံးပါ။ Validation failure ကို exception၊ nullable result သို့ explicit result type ဘယ်လိုဖော်ပြမလဲက API contract ဆုံးဖြတ်ချက်ပါ။ `catch` ထဲမှာ error ဖျောက်ပြီး success response မပြန်ပါနှင့်။
+
+**Lab** — Zero/negative amount ကို ပယ်၊ valid amount ကို result ပြန်စေပါ။ `Withdraw` method အတွက် insufficient funds case ကို သီးခြားရှင်းပါ။ Method body ထဲ breakpoint ထည့်ပြီး call stack၊ argument တန်ဖိုး၊ return value ကြည့်ပါ။ နောက်တစ်ဆင့် `public`/`private`၊ instance/static၊ expression-bodied method၊ optional parameter၊ overload ကို အစဉ်လိုက်လုပ်ပါ။
+
+**Official docs** — [Methods](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/methods)။
+
+### L03 — Class၊ interface၊ record၊ constructor နဲ့ generic syntax
+
+လက်ရှိ `Customer`၊ `CustomerDto`၊ `ICurrentUserService`၊ `CurrentUserService` ကို တစ်ဖိုင်ချင်းဖတ်ပါ။ `public string FullName { get; set; } = string.Empty;` မှာ property accessor နှင့် default value ကို ခွဲရှင်းပါ။ `string?` က null ဖြစ်နိုင်ကြောင်း annotation ပါ။ Nullable warning ကို `!` ထည့်ပြီး ဖျောက်ခြင်းအစား data flow နဲ့စစ်ပါ။ `CustomerDto` က `record class` ဖြစ်ပေမယ့် public setters ရှိသဖြင့် immutable မဟုတ်ပါ။
+
+လက်ရှိ class declaration တစ်ခုကို ကြည့်ပါ:
+
+```csharp
+public class CustomerController(ISender sender) : ControllerBase
+```
+
+ဒါက primary constructor parameter နဲ့ base class inheritance ပါ။ `sender` ကို constructor argument အဖြစ် framework activation က ဖြည့်ပေးတယ်။ Primary constructor parameter ရေးရုံနဲ့ public property အလိုအလျောက် ဖြစ်မလာပါ။ အရင်ဆုံး အောက်က teaching-only equivalent ပုံစံနဲ့ စဉ်းစားပါ:
+
+```csharp
+public class ExampleController : ControllerBase
+{
+    private readonly ISender _sender;
+
+    public ExampleController(ISender sender)
+    {
+        _sender = sender;
+    }
+}
+```
+
+API namespace နှင့် `using MediatR; using Microsoft.AspNetCore.Mvc;` လိုသည်။ လက်ရှိ controller ကို ထပ်မဖန်တီးပါနှင့်။ `_sender` ထဲသိမ်းခြင်းက dependency ကို ကိုယ်တိုင်ဖန်တီးခြင်း မဟုတ်ပါ။ `new` က object ဖန်တီးရန်၊ constructor က initialization လုပ်ရန်၊ DI က dependency graph ဆောက်ပေးရန် ဖြစ်တယ်။
+
+**Generics** — `BaseAuditableEntity<Guid>` မှ `Guid` က type argument၊ `IRequestHandler<CreateCustomerCommand, CustomerDto>` က input/output contract၊ `Task<CustomerDto>` က နောင်အပြီးသတ်မည့် operation ရဲ့ result type ဖြစ်တယ်။ `<TRequest,TResponse>` က type parameters၊ `where TRequest : notnull` က constraint ဖြစ်တယ်။ `typeof(ValidationBehavior<,>)` က မပိတ်ရသေးသော open generic type ပါ။ HTTP request တစ်ခုချင်းရဲ့ `TRequest`/`TResponse` နှင့် ကိုက်ညီသော closed type ကို container က resolve လုပ်တယ်။
+
+**Lab** — `ICurrentUserService` ကို fake implementation ဖြင့် constructor ထဲပေးပြီး HTTP မရှိချိန် null result နဲ့ authenticated fixture result ကို စဉ်းစားပါ။ Entity ထဲရှိ field အားလုံးကို response ပေးရန် မလိုကြောင်း၊ DTO ရှိသော်လည်း ownership check မပြီးသေးကြောင်း ရှင်းပါ။
+
+**Official docs** — [Constructors](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constructors) · [Nullable references](https://learn.microsoft.com/en-us/dotnet/csharp/nullable-references)။
+
+### L04 — Collections၊ LINQ၊ async/await နှင့် cancellation
+
+`GetCustomersQueryHandler.cs` ထဲက EF query နဲ့ `ValidationBehavior.cs` ထဲက `foreach` ကို လက်ရှိ code နဲ့တွဲဖတ်ပါ။ `List<T>` က memory collection၊ `IEnumerable<T>` က iteration contract၊ `IQueryable<T>` က provider ဘက်သို့ query expression ပို့နိုင်သော contract ဖြစ်တယ်။ SQL မထွက်မီ filtering/projection လုပ်ခြင်းနှင့် `ToList` လုပ်ပြီးမှ memory ထဲ filtering လုပ်ခြင်းကို ခွဲပါ။ `Select(x => ...)` မှ `=>` က lambda ဖြစ်ပြီး object တစ်ခုချင်းကို ဘယ်လိုပြောင်းမလဲ သတ်မှတ်တယ်။
+
+လက်ရှိ create handler ထဲက I/O call ကို ကြည့်ပါ:
+
+```csharp
+await _context.SaveChangesAsync(cancellationToken);
+```
+
+`Task<int>` သည် save operation ပြီးချိန် affected count ရမည့် result ပါ။ `await` က မပြီးသေးလျှင် method ကို ခေတ္တရပ်၍ continuation သတ်မှတ်ပေးတယ်။ `async` ဆိုတိုင်း thread အသစ်ဖန်တီးတာ မဟုတ်ပါ။ `.Result`/`.Wait()` ဖြင့် request thread ပိတ်မထားပါနှင့်။ DbContext တစ်ခုကို `Task.WhenAll` နဲ့ query နှစ်ခု ပြိုင်တူမသုံးပါနှင့်။ Cancellation token ကို controller → sender → handler → EF အထိ ပို့ပါ။ Cancel ဖြစ်ခြင်းက commit ဖြစ်ပြီးသားငွေလွှဲကို ပြန်ဖျက်ပေးမည်ဟု အာမမခံပါ။
+
+**Lab** — Query တစ်ခုမှာ database call မလုပ်မီ/ပြီး breakpoint ထည့်ပါ။ `AsNoTracking` နှင့် tracking query ကွာပုံကိုကြည့်ပါ။ Cancellation token ကို missing ဖြစ်စေပြီး debugger နဲ့ propagation လမ်းကြောင်း စစ်ပါ။ Client response ပျောက်သော်လည်း transaction commit ဖြစ်နိုင်သည့်အခြေအနေကို L11 idempotency နဲ့ ပြန်ချိတ်ပါ။
+
+**Official docs** — [Async programming](https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/) · [DbContext threading နှင့် lifetime](https://learn.microsoft.com/en-us/ef/core/dbcontext-configuration/)။
+
+### L05 — `Program.cs` ကို startup ကနေ request အထိဖတ်ပါ
+
+Top-level statements တွေကို compiler က entry point ထဲထည့်ပေးတယ်။ `args` က command-line arguments ပါ။ လက်ရှိ `Program.cs` ကို အောက်ပါ လုပ်ငန်းစဉ်နဲ့ trace လုပ်ပါ:
+
+| Code | ဘာကြောင့်ထည့်သလဲ / ဘာဖြစ်သလဲ |
+|---|---|
+| `WebApplication.CreateBuilder(args)` | Host၊ configuration၊ logging၊ environment နှင့် service collection ပြင်ဆင်တယ်။ |
+| `AddControllers()` | MVC/controller လုပ်ဆောင်ရန် service registrations ထည့်တယ်။ Controller method ကို ဒီအချိန်မှာ မခေါ်သေး။ |
+| `AddOpenApi()` | OpenAPI document generation အတွက် services ထည့်တယ်။ JSON URL ဖွင့်ခြင်းက `MapOpenApi()` အဆင့်။ |
+| `AddApplicationServices()` | BankLab ရဲ့ extension method ကိုခေါ်၍ validators၊ handlers နှင့် validation behavior ချိတ်တယ်။ |
+| `AddInfrastructureServices(builder.Configuration)` | Connection string ဖတ်၊ DbContext၊ interface alias၊ Identity stores နှင့် initializer ချိတ်တယ်။ Connection string မရှိလျှင် ဒီ registration method ထဲမှာပင် throw ဖြစ်နိုင်သည်။ |
+| `AddHttpContextAccessor()` / current-user scoped registration | Request user claims ကို infrastructure audit logic အထိ ဖတ်နိုင်ဖို့။ |
+| `AddAuthentication(...).AddJwtBearer()` | Bearer scheme/handler ချိတ်တယ်။ Token issuer configuration ကို register လုပ်ရုံနဲ့ အပြီးမဖြစ်။ |
+| `AddAuthorization()` | Authorization services ထည့်တယ်။ Route ကို ကာကွယ်ဖို့ policy/attribute နှင့် middleware လိုသည်။ |
+| `AddExceptionHandler<GlobalExceptionHandler>()` / `AddProblemDetails()` | Error handling services ချိတ်တယ်။ Requests ကို ပတ်ဖမ်းဖို့ `UseExceptionHandler()` လိုသည်။ |
+| `builder.Build()` | Host နဲ့ root service provider တည်ဆောက်တယ်။ Service အားလုံးရဲ့ instance ကို ကြိုတင်ဖန်တီးပြီးသားဟု မယူပါနှင့်။ |
+| Development `CreateScope()` + `SeedRolesAsync()` | Request မရှိသော startup မှာ scoped Identity/DbContext ကို သီးခြား scope နဲ့ resolve လုပ်ပြီး roles စစ်/ထည့်တယ်။ DB မရလျှင် server စတင်လက်ခံခြင်း မရောက်နိုင်။ |
+| `Use...` | Request pipeline မှာ middleware ချိတ်တယ်။ |
+| `MapControllers()` | Controller action endpoints ကို route table နဲ့ချိတ်တယ်။ |
+| `app.Run()` | Host ကို start လုပ်ပြီး shutdown အထိ run တယ်။ `app.Run(async context => ...)` terminal middleware overload နဲ့ မတူ။ |
+
+**Configuration lab** — `appsettings.json`၊ Development file၊ user secrets၊ environment variables၊ command-line arguments ဘယ်ကလာသလဲ trace လုပ်ပါ။ `ConnectionStrings:DefaultConnection` key မရှိလျှင် thrown message ကိုကြည့်ပါ။ Secret value ကို log မထုတ်ဘဲ key ရှိ/မရှိ၊ provider နဲ့ environment ကိုသာ မှတ်ပါ။ `Properties/launchSettings.json` ထဲက HTTPS `7087`၊ HTTP `5009` နဲ့ `Development` setting ကို console listening URL နှင့်တိုက်ပါ။
+
+**ပြီးမြောက်မှု** — Registration၊ build၊ startup DB call၊ middleware execution၊ endpoint execution အချိန်တွေကို ခွဲပြောနိုင်ရမယ်။ `AddControllers()` နဲ့ `MapControllers()` တစ်ခုစီ ဖြုတ်လျှင် ဘာပျက်မလဲ ကြိုခန့်မှန်းပြီး lab branch မှာသာစမ်းပါ။
+
+**Official docs/source** — [Top-level statements](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/program-structure/top-level-statements) · [WebApplication builder](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/webapplication?view=aspnetcore-11.0) · [WebApplicationBuilder.cs v11.0.0 — Build](https://github.com/dotnet/aspnetcore/blob/v11.0.0/src/DefaultBuilder/src/WebApplicationBuilder.cs)။
+
+### L06 — `IServiceCollection` က ဘာလဲ၊ register လုပ်ရင် ဘာထည့်သလဲ
+
+`builder.Services` က `IServiceCollection` ဖြစ်ပြီး service descriptors စုထားသော registration collection ပါ။ `IServiceProvider` က အဲဒီ registrations အတိုင်း object များ resolve လုပ်ပေးသော provider ပါ။ Collection ထဲ object အားလုံးကို တန်းဖန်တီးသိမ်းထားခြင်း မဟုတ်ပါ။ Type၊ factory သို့ supplied instance ဖြင့် register လုပ်နိုင်တယ်။
+
+လက်ရှိ registration ကို syntax ခွဲဖတ်ပါ:
+
+```csharp
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+```
+
+`ICurrentUserService` က တောင်းမည့် service type၊ `CurrentUserService` က implementation type၊ `Scoped` က lifetime ဖြစ်တယ်။ ပုံမှန် type registration က descriptor ထည့်ပြီး object ကို နောက် resolve အဆင့်မှ ဆောက်တယ်။ Implementation constructor ထဲ breakpoint ထည့်လျှင် register လုပ်သောလိုင်းမှာ မဝင်သေးကြောင်း စမ်းပါ။ Factory body ကလည်း registration အချိန်မှာမဟုတ်ဘဲ resolve လုပ်ချိန်တွင် အလုပ်လုပ်တယ်။
+
+**Extension method deep dive** — BankLab ရဲ့ `AddApplicationServices(this IServiceCollection services)` မှ `this` က extension receiver ဖြစ်တယ်။ `builder.Services.AddApplicationServices()` ကို concept အနေနဲ့ `BankLab.Application.DependencyInjection.AddApplicationServices(builder.Services)` လို့ ဖတ်နိုင်တယ်။ Method က services ကို ပြန်ပေးတာဟာ chained calls ရေးနိုင်ရန်ပါ။ Framework မှ magic အမည်သတ်မှတ်ထားတာမဟုတ်ဘဲ project ရဲ့ static method သာဖြစ်တယ်။ `config => { ... }` က configuration delegate၊ `typeof(DependencyInjection).Assembly` က scan လုပ်မည့် assembly ကို သတ်မှတ်တယ်။
+
+**Lab** — `Build()` မတိုင်ခင် debugger ထဲ `builder.Services` ကြည့်၍ `ServiceType`၊ `Lifetime`၊ `ImplementationType`/`ImplementationFactory` ကို ရှာပါ။ Framework/third-party extensions က descriptors အများကြီးထည့်နိုင်သည်။ Built-in container မှ service တူကို နှစ်ခါ register လုပ်လျှင် single resolution မှ last registration၊ `IEnumerable<T>` မှ matching registrations အားလုံး ဘယ်လိုရသလဲ သီးသန့် lab ဖြင့်စမ်းပါ။ Production startup မှာ `BuildServiceProvider()` ထပ်ခေါ်၍ ဒုတိယ provider မဖန်တီးပါနှင့်။
+
+**Official docs/source** — [Extension methods](https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/extension-methods) · [IServiceCollection.cs](https://github.com/dotnet/runtime/blob/v11.0.0/src/libraries/Microsoft.Extensions.DependencyInjection.Abstractions/src/IServiceCollection.cs) · [ServiceCollection.cs](https://github.com/dotnet/runtime/blob/v11.0.0/src/libraries/Microsoft.Extensions.DependencyInjection.Abstractions/src/ServiceCollection.cs) · [ServiceDescriptor.cs](https://github.com/dotnet/runtime/blob/v11.0.0/src/libraries/Microsoft.Extensions.DependencyInjection.Abstractions/src/ServiceDescriptor.cs)။
+
+### L07 — DI internals: object graph၊ lifetime၊ request scope နှင့် disposal
+
+လက်ရှိ Infrastructure ထဲမှာ အောက်က registration ရှိတယ်:
+
+```csharp
+services.AddScoped<IApplicationDbContext>(provider =>
+    provider.GetRequiredService<BankLabDbContext>());
+```
+
+ဒါက interface တောင်းတဲ့အခါ အဲဒီ scope ထဲက concrete context ကိုပဲ ပြန်သုံးရန် factory alias ဖြစ်တယ်။ `AddScoped<IApplicationDbContext, BankLabDbContext>()` ဟု သီးခြား type registration ထပ်ချိတ်ရင် concrete/interface service registrations က context instance နှစ်ခုစီ ဖန်တီးနိုင်တယ်။ Unit of work တစ်ခုမှာ context တူရမည့်အကြောင်း debugger ဖြင့်ပြပါ။
+
+**Resolve လုပ်စဉ်** — Handler ကို container မှ ဖန်တီးရန်လိုသောအခါ `IApplicationDbContext` → factory → `BankLabDbContext` → `DbContextOptions<BankLabDbContext>` + `ICurrentUserService` → `CurrentUserService` → `IHttpContextAccessor` ဟု dependency graph ဖြန့်တယ်။ Constructor တစ်ခုချင်းရဲ့ dependencies ကို resolve ပြီး consumer ထဲပေးတယ်။ Interface မှာ implementation အလိုအလျောက် သိထားတာမဟုတ်ပါ။ Missing registration သို့ circular dependency ရှိလျှင် resolve/build validation မှာ error ဖြစ်နိုင်သည်။
+
+| Lifetime | Instance ပြန်ရပုံ | BankLab အတွက် စဉ်းစားရန် |
+|---|---|---|
+| Transient | Resolve တစ်ကြိမ်စီတွင် အသစ် | Stateless helper အတွက် သင့်လျော်နိုင်သည်။ Disposable transient ကို container က track လုပ်နိုင်သေးသည်။ |
+| Scoped | Scope တစ်ခုအတွင်း တူ | `AddDbContext` default၊ current-user wrapper။ Request တစ်ခု၏ context ကို မျှဝေသည်။ |
+| Singleton | Provider တစ်ခုအတွက် တူ | Shared state ရှိလျှင် concurrent access ကို စီမံရမယ်။ Per-user data/DbContext မသိမ်းပါနှင့်။ |
+
+Request scope က `HttpContext.RequestServices` အသုံးပြုချိန် lazy ဖန်တီးနိုင်ပြီး request အဆုံး dispose လုပ်ဖို့ ချိတ်ထားတယ်။ Scope က user session မဟုတ်ပါ။ User တူ request နှစ်ခုမှာ scope နှစ်ခုရတယ်။ Conventional middleware constructor ထဲ scoped context မသွင်းဘဲ `InvokeAsync` parameter သို့ `IMiddleware` activation pattern ကို နောက် lab မှာ လေ့လာပါ။ Singleton worker ထဲ scoped context မဖမ်းထားဘဲ operation တစ်ခါစီ scope ဖန်တီးပါ။
+
+**Runnable console lifetime lab** — သီးသန့် console project မှာ `Microsoft.Extensions.DependencyInjection` `11.0.0` reference ရှိပြီးမှ သုံးပါ။ BankLab API ထဲ မထည့်ပါနှင့်။
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+services.AddScoped<ScopeProbe>();
+using var provider = services.BuildServiceProvider(new ServiceProviderOptions
+{
+    ValidateScopes = true,
+    ValidateOnBuild = true
+});
+
+using (var first = provider.CreateScope())
+{
+    var a = first.ServiceProvider.GetRequiredService<ScopeProbe>();
+    var b = first.ServiceProvider.GetRequiredService<ScopeProbe>();
+    Console.WriteLine(ReferenceEquals(a, b)); // True
+    Console.WriteLine(a.Id);
+}
+
+using (var second = provider.CreateScope())
+{
+    Console.WriteLine(second.ServiceProvider.GetRequiredService<ScopeProbe>().Id);
+}
+
+public sealed class ScopeProbe : IDisposable
+{
+    public Guid Id { get; } = Guid.NewGuid();
+    public void Dispose() => Console.WriteLine($"Disposed: {Id}");
+}
+```
+
+**မျှော်မှန်းရလဒ်** — First scope ထဲ object တူ၊ second scope မှာ ID အသစ်၊ scope တစ်ခုဆုံးတိုင်း dispose message တစ်ခါစီ။ ထို့နောက် Singleton/Transient သို့ပြောင်းပြီး ကြိုခန့်မှန်းပါ။ Validation ဖွင့်ထားစဉ် root provider မှ scoped service တောင်းပြီး error ကြည့်ပါ။ App ပြန် run ရန် မပြောင်းမီ code ကိုပြန်ထားပါ။
+
+**Framework source ကိုဖတ်မည့်အစဉ်** — အောက်က v11.0.0 tag ကိုသုံးပါ။ Internal method/class များက public contract မဟုတ်သဖြင့် framework upgrade လုပ်ချိန် ပြန်စစ်ပါ။
+
+1. [ServiceProvider.cs](https://github.com/dotnet/runtime/blob/v11.0.0/src/libraries/Microsoft.Extensions.DependencyInjection/src/ServiceProvider.cs) ထဲ `GetService`/`CreateServiceAccessor` ကိုရှာပါ။ Service identifier မှ call site နဲ့ accessor ကို ရယူပုံ ကြည့်ပါ။ Build ချိန် graph စစ်ခြင်းက instances အကုန် create လုပ်ခြင်းနှင့် မတူပါ။
+2. [CallSiteFactory.cs](https://github.com/dotnet/runtime/blob/v11.0.0/src/libraries/Microsoft.Extensions.DependencyInjection/src/ServiceLookup/CallSiteFactory.cs) ထဲ `CreateConstructorCallSite` ကိုဖတ်ပါ။ Constructor dependencies၊ factory၊ open generic၊ `IEnumerable<T>` တို့အတွက် resolution plan တည်ဆောက်ပုံ ကြည့်ပါ။ Constructor overload အများကြီးက ambiguity ဖြစ်နိုင်လို့ lab မှာ public constructor တစ်ခုနဲ့စပါ။
+3. [CallSiteRuntimeResolver.cs](https://github.com/dotnet/runtime/blob/v11.0.0/src/libraries/Microsoft.Extensions.DependencyInjection/src/ServiceLookup/CallSiteRuntimeResolver.cs) ထဲ `VisitRootCache`/`VisitScopeCache` မှ root/scoped reuse ကိုနှိုင်းပါ။ ဒီ file က runtime resolver path ဖြစ်ပြီး environment အလိုက် compiled accessor engines လည်း ရှိနိုင်သည်။ Request တိုင်း reflection နဲ့ graph အကုန်အသစ်ဆောက်သည်ဟု မယူပါနှင့်။
+4. [ServiceProviderEngineScope.cs](https://github.com/dotnet/runtime/blob/v11.0.0/src/libraries/Microsoft.Extensions.DependencyInjection/src/ServiceLookup/ServiceProviderEngineScope.cs) ထဲ `CaptureDisposable`၊ `Dispose`/`DisposeAsync` ကိုကြည့်ပါ။ Container က ဖန်တီး track လုပ်ထားသော disposable objects ကို owning scope အဆုံးရှင်းတယ်။ ကိုယ်တိုင်ဖန်တီးပြီး instance ဖြင့် register လုပ်ထားသော object ရဲ့ disposal ownership က ကွာနိုင်သည်။
+5. [RequestServicesFeature.cs](https://github.com/dotnet/aspnetcore/blob/v11.0.0/src/Http/Http/src/Features/RequestServicesFeature.cs) ထဲ `RequestServices` getter မှ scope creation နဲ့ response disposal registration ကို trace လုပ်ပါ။
+
+**ပြီးမြောက်မှု** — `IApplicationDbContext` နှင့် `BankLabDbContext` ကို request scope တစ်ခုထဲ resolve လုပ်ပြီး `ReferenceEquals` true ဖြစ်ကြောင်းပြပါ။ Development role-seeding scope မှာ current user null ဖြစ်နိုင်ကြောင်းရှင်းပါ။ [Microsoft DI overview](https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection) · [DI disposal နှင့် lifetime guidelines](https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection-guidelines)။
+
+### L08 — Middleware ဆိုတာ request ကို ဝိုင်းထားသော function chain
+
+လက်ရှိ order က exception handler → HTTPS redirection → authentication → authorization → controller endpoints ဖြစ်တယ်။ Minimal host က routing/endpoint infrastructure အချို့ကို အလိုအလျောက်ချိတ်ပေးနိုင်သဖြင့် `UseRouting` မတွေ့ရုံနဲ့ routing မရှိဟု မယူပါနှင့်။ Authentication က user identity သတ်မှတ်ပေးပြီး authorization က endpoint ဝင်ခွင့်ဆုံးဖြတ်တယ်။ `[Authorize]` က account ownership စစ်ပြီးသားဟု မဆိုလိုပါ။
+
+**Teaching-only tracing snippet** — lab branch မှာ `app.UseExceptionHandler()` နောက်၊ HTTPS redirection မတိုင်ခင် ထည့်ပါ။ နှစ်ခုလုံး `MapControllers()` မတိုင်ခင်ရှိရမယ်။
+
+```csharp
+app.Use(async (context, next) =>
+{
+    app.Logger.LogInformation("A before {TraceId}", context.TraceIdentifier);
+    await next(context);
+    app.Logger.LogInformation("A after {Status}", context.Response.StatusCode);
+});
+
+app.Use(async (context, next) =>
+{
+    app.Logger.LogInformation("B before");
+    await next(context);
+    app.Logger.LogInformation("B after");
+});
+```
+
+Normal successful request မှာ `A before → B before → endpoint → B after → A after` ရမယ်။ `next` မခေါ်လျှင် downstream မဝင်တော့ဘဲ short-circuit ဖြစ်တယ်။ Downstream exception တက်လျှင် `await next` နောက်က code မပြေးနိုင်သဖြင့် cleanup လိုလျှင် `try/finally` ကို လေ့လာပါ။ Headers/status ကို response စပြီးမှ ပြောင်းမရနိုင်ကြောင်း စမ်းပါ။
+
+**Error flow** — လက်ရှိ `GlobalExceptionHandler` က FluentValidation exception ကိုသာ 422 JSON ပြန်ပြီး အခြား exception အတွက် false ပြန်တယ်။ `AddProblemDetails` ထည့်ထားသော်လည်း အဲဒီ 422 body သည် custom envelope ဖြစ်ပြီး automatic standard ProblemDetails မဟုတ်ပါ။ Invalid JSON/model binding 400၊ authentication 401၊ authorization 403၊ missing route/entity 404၊ FluentValidation 422 ကို မရောပါနှင့်။ Token validation settings မပြည့်စုံသေးလျှင် authorized endpoint ကို အောင်မြင်စွာခေါ်နိုင်မည်ဟု မယူပါနှင့်။
+
+**Lab** — HTTPS သုံးပြီး `/api/customers` ကို token မပါဘဲခေါ်၍ expected 401 ကိုစစ်ပါ။ Valid test identity တပ်ပြီး bad command ပို့လျှင် validator → exception handler → 422 လမ်းကြောင်းကိုစစ်ပါ။ Response status၊ body၊ breakpoint ဝင်/မဝင်ကို တွဲမှတ်ပါ။ Token/PII ကို trace ထဲမထည့်ပါနှင့်။
+
+**Official docs/source** — [Middleware order](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/middleware/?view=aspnetcore-11.0) · [Error handling](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling?view=aspnetcore-11.0) · [ApplicationBuilder.cs — Build](https://github.com/dotnet/aspnetcore/blob/v11.0.0/src/Http/Http/src/Builder/ApplicationBuilder.cs)။ Source မှ registered components ကို reverse အစဉ်နဲ့ wrap လုပ်ပုံ ရှာပါ။
+
+### L09 — လက်ရှိ Customer flow ကို request တစ်ခုဖြင့် deep dive
+
+အသစ် transfer API မရေးမီ ရှိပြီးသား Customer creation ကို အစအဆုံးနားလည်ပါ။ ဒီပုံက controller action သို့ အောင်မြင်စွာရောက်သော request ရဲ့ လမ်းကြောင်းပါ:
+
+```text
+HTTPS POST /api/customers
+  → exception/authentication/authorization middleware
+  → JSON model binding → CreateCustomerCommand
+  → CustomerController.CreateCustomer
+  → ISender.Send
+  → ValidationBehavior<TRequest,TResponse> → validators
+  → CreateCustomerCommandHandler.Handle
+  → IApplicationDbContext → BankLabDbContext
+  → Customers.Add → ChangeTracker (Added)
+  → SaveChangesAsync override → audit values → EF SQL → database
+  → CustomerDto mapping → 201 JSON
+```
+
+`Customers.Add` က entity ကို tracked Added state သတ်မှတ်တာဖြစ်ပြီး ဒီလိုင်းမှာ INSERT ချက်ချင်းပြီးမသွားပါ။ `SaveChangesAsync` က persistence boundary ပါ။ လက်ရှိ override က `DateTime.Now` နဲ့ `currentUserService.UserName` ဖြည့်တယ်။ UTC timestamp/immutable user ID audit design ကို မူလပတ် ၁၂ မှာ လေ့လာပြီး လက်ရှိ code နှင့်ကွာပုံ မှတ်ပါ။ Delete state ကို Modified ပြောင်းထားသော်လည်း deleted-row filtering/visibility policy ပြည့်စုံကြောင်း မယူပါနှင့်။
+
+**DTO lab** — Entity ကို response အဖြစ်တိုက်ရိုက်ပြန်ခြင်းနှင့် `CustomerDto` projection နှိုင်းပါ။ လက်ရှိ DTO ထဲ NRC နဲ့ audit fields ပါနေခြင်းကြောင့် DTO ရှိရုံနဲ့ sensitive-data exposure မဖြေရှင်းကြောင်း ဆွေးနွေးပါ။ Customer ကိုယ်တိုင်ဖတ်ခွင့်ရှိသော fields၊ staff fields၊ server က သတ်မှတ်ရသော fields ကို use case အလိုက်ရေးပါ။ Request body ထဲ `CreatedBy` ပို့ရုံနဲ့ actor ပြောင်းမသွားရ။
+
+**ပြီးမြောက်မှု** — Request ID တစ်ခုကို controller၊ validator၊ handler၊ context၊ SQL၊ DTO အထိ ချိတ်ပြပါ။ Invalid request က DB write မရောက်ကြောင်းစစ်ပါ။ MediatR/FluentValidation က third-party libraries ဖြစ်ပြီး Microsoft DI/HTTP pipeline နဲ့ ချိတ်သုံးထားခြင်းဖြစ်သည်။ သူတို့ရဲ့ application behavior pipeline နှင့် ASP.NET middleware pipeline က သီးခြားအလွှာတွေပါ။ [EF Core change tracking](https://learn.microsoft.com/en-us/ef/core/change-tracking/) · [EF Core SaveChanges](https://learn.microsoft.com/en-us/ef/core/saving/)။
+
+### L10 — Banking domain: method မှ balanced journal သို့
+
+လက်ရှိ repo မှာ banking ledger မရှိသေးသဖြင့် အောက်ကအဆင့်က **နောက်တည်ဆောက်မည့် lab** ပါ။ Bank ရဲ့ perspective မှ deposit liability နှင့် cash asset ကိုခွဲပါ။ Account number က customer-facing identifier၊ CustomerId က ပိုင်ရှင်၊ GL account က accounting classification ဖြစ်တယ်။ Ledger balance၊ available balance၊ hold ကို တူသည်ဟုမယူပါနှင့်။
+
+| Business event | Debit | Credit | မျှော်မှန်းရလဒ် |
+|---|---|---|---|
+| Cash deposit 1,000.00 | Cash asset 1,000.00 | Customer A deposit liability 1,000.00 | A subledger +1,000.00 |
+| Cash withdrawal 250.00 | Customer A deposit liability 250.00 | Cash asset 250.00 | A subledger −250.00 |
+| Same-bank A → B 100.00 | A deposit liability 100.00 | B deposit liability 100.00 | A −100၊ B +100၊ bank cash မပြောင်း |
+
+ပထမ pure calculation lab ကို console ထဲစမ်းပြီးမှ Domain ထဲ journal invariant သို့ရွှေ့ပါ:
+
+```csharp
+using System.Linq;
+
+var lines = new[]
+{
+    new LabLine(LabSide.Debit, 1000m),
+    new LabLine(LabSide.Credit, 1000m)
+};
+decimal debit = lines.Where(x => x.Side == LabSide.Debit).Sum(x => x.Amount);
+decimal credit = lines.Where(x => x.Side == LabSide.Credit).Sum(x => x.Amount);
+Console.WriteLine(debit == credit); // True
+
+public enum LabSide { Debit, Credit }
+public sealed record LabLine(LabSide Side, decimal Amount);
+```
+
+ဒီ snippet သည် balancing calculation ပဲဖြစ်ပြီး posting validation မပြည့်သေးပါ။ Domain method ထဲ line အနည်းဆုံး ၂ ကြောင်း၊ positive amounts၊ valid sides၊ currency တူ၊ allowed precision၊ debit=credit ကို ထပ်စစ်ပါ။ BusinessDate နဲ့ PostedAtUtc ကို ခွဲပါ။ Posted journal ပြင်/ဖျက်ခြင်းအစား linked reversal သုံးပါ။ SQL decimal precision နဲ့ row constraints ကို migrations မှာ review လုပ်ပါ။ Journal စုစုပေါင်းညီခြင်းကို row-level CHECK တစ်ခုတည်းနဲ့ မစစ်နိုင်ပါ။
+
+**Lab အစဉ်** — L02 method → Domain journal invariant → Application posting use case → Infrastructure mappings → scoped registration → controller DTO → SQL integration tests။ Deposit ကို header ၁ ခု၊ lines ၂ ခုအဖြစ် transaction တစ်ခုထဲသိမ်းပါ။ Line တစ်ခု fail လျှင် header အပါအဝင် writes အားလုံး rollback ဖြစ်ရမယ်။ [EF Core transactions](https://learn.microsoft.com/en-us/ef/core/saving/transactions) · [Database design lab](Database-Design.md)။
+
+### L11 — Transfer ကို retry၊ concurrent requests နဲ့ စမ်းပါ
+
+မူလပတ် ၅–၇ ရဲ့ acceptance checks ကို ဆက်သုံးပါ။ တစ်ခုတည်းသော `SaveChanges` အတွင်း writes တွေကို provider support ရှိလျှင် transaction ဖြင့် apply လုပ်နိုင်တယ်။ Business operation မှာ save calls အများကြီးပါလျှင် transaction boundary ကို သီးခြားသတ်မှတ်ရမယ်။ EF retry execution strategy နှင့် explicit transaction ကို ပေါင်းသုံးရာမှာ official guidance အတိုင်း retriable unit တစ်ခုအဖြစ် စီစဉ်ပါ။
+
+အောက်ပါ pseudo-flow ကို ပြီးပြည့်စုံသော transfer implementation ဟု မကူးပါနှင့်။ Race နှင့် unique conflicts ကို SQL Server tests ဖြင့် ဆုံးဖြတ်ပြီးမှ code ရေးပါ:
+
+```text
+authenticate → verify sender ownership → validate command
+→ transaction/retry boundary
+→ claim unique idempotency key (caller + operation + key)
+→ same key + same normalized payload: stored result
+→ same key + changed payload: conflict
+→ read state + concurrency token; verify funds/status/currency
+→ balanced journal + transfer + balance projection + stored result
+→ commit → response
+```
+
+Idempotency key ကို read-then-insert လုပ်ရုံနဲ့ concurrent duplicate မကာကွယ်နိုင်ပါ။ Database unique constraint နဲ့ conflict handling လိုတယ်။ Balance ကို အရင်ဖတ်ပြီး `if` စစ်ရုံကလည်း concurrent overspend မကာကွယ်နိုင်ပါ။ SQL Server `rowversion`၊ conditional update သို့ appropriate locking/isolation တစ်ခုရွေးပြီး လုပ်ငန်းစည်းမျဉ်းတစ်ခုလုံးကို retry လုပ်ချိန် ပြန်စစ်ပါ။ `DbUpdateConcurrencyException` ကို success အဖြစ် မဖျောက်ပါနှင့်။
+
+**အရေးကြီးသော lab fixtures** — A=100.00၊ B=0.00၊ C=0.00 ဖြင့် A မှ 80.00 transfers နှစ်ခု ပြိုင်တူလုပ်ပါ။ တစ်ခုသာအောင်၊ A=20.00၊ B+C=80.00၊ posted journal တစ်ခုပဲရရမယ်။ Duplicate request ၅ ခုတွင် transfer/journal တစ်ခု၊ response timeout ပြီး retry တွင် receipt တူ၊ payload ပြောင်းလျှင် conflict၊ commit မတိုင်ခင် failure တွင် writes 0 ဖြစ်ရမယ်။ Commit ပြီး response ပျောက်လျှင် receipt ကို key ဖြင့် ပြန်ရှာရမယ်။ Redis cache ကို authoritative funds check အဖြစ် မသုံးပါနှင့်။
+
+**Official docs** — [EF transactions/retry interactions](https://learn.microsoft.com/en-us/ef/core/saving/transactions) · [Optimistic concurrency](https://learn.microsoft.com/en-us/ef/core/saving/concurrency)။ Banking invariant မှန်ကြောင်းကို EF InMemory တစ်ခုတည်းဖြင့် မအတည်ပြုပါနှင့်။ SQL Server ရဲ့ transaction/unique constraint behavior ကို စမ်းရမယ်။
+
+### L12–L13 — မူလ roadmap နှင့် ချိတ်ပြီး အဆင့်တိုးပါ
+
+ပတ် ၈ မှ Angular မှ ပို့သော request ကို browser → middleware → handler → SQL → response အထိ trace လုပ်ပါ။ UI disable button ရှိရုံနဲ့ duplicate transfer မကာကွယ်ကြောင်းစမ်းပါ။ ပတ် ၉–၁၀ မှ provider callback duplicate/out-of-order၊ unknown outcome၊ clearing/settlement နဲ့ reconciliation ကို state-machine labs အဖြစ်လုပ်ပါ။ ပတ် ၁၁–၁၂ မှ KYC eligibility၊ ownership၊ role segregation၊ reversal approval နဲ့ audit actor ကို controller တိုင်းမှာ စစ်ပါ။ Identity registration/role seed ရှိပြီးသားဖြစ်သော်လည်း secure login၊ token validation၊ ownership linkage ပြီးစီးကြောင်း မယူပါနှင့်။
+
+ပတ် ၁၃ မှ `BackgroundService` singleton lifetime ကနေ scoped service ယူရာမှာ batch တစ်ခုစီ `IServiceScopeFactory.CreateAsyncScope()` ဖြင့် scope ဖန်တီး၍ scoped handler/context ကို အဲဒီအတွင်း resolve လုပ်ပါ။ Scope ကျော်၍ DbContext ကို field ထဲ မသိမ်းပါနှင့်။ Outbox row ကို business journal နဲ့ transaction တစ်ခုထဲရေးပြီး publish/retry/inbox deduplication လုပ်ပါ။ ပတ် ၁၄–၁၆ မှ query performance၊ trace၊ CI၊ migrations၊ rollback၊ backup restore ကို မူလ acceptance criteria အတိုင်းပြီးစီးစေပါ။ [Scoped services in BackgroundService](https://learn.microsoft.com/en-us/dotnet/core/extensions/scoped-service)။
+
+### သင်ခန်းစာပြီးစီးမှု Checklist နှင့် နောက်စသင်မည့်နေရာ
+
+- [ ] L00–L04: Syntax ကို အဓိပ္ပာယ်ပြန်ပြောနိုင်ပြီး method ကို မကူးဘဲ ပြန်ရေးနိုင်သည်။ Argument၊ return၊ object/reference၊ generic၊ await ကို ရှင်းပြနိုင်သည်။
+- [ ] L05–L07: Registration က descriptor၊ resolve က instance ဖြစ်ကြောင်း၊ `Build`/scope/lifetime/disposal ကွာပုံကို လက်တွေ့ပြနိုင်သည်။
+- [ ] L08–L09: Request တစ်ခုကို middleware၊ controller၊ validator၊ handler၊ context၊ SQL၊ DTO အထိ trace လုပ်နိုင်သည်။
+- [ ] L10–L11: Financial invariants၊ rollback၊ duplicate၊ concurrent spending ကို SQL Server fixtures ဖြင့် အတည်ပြုနိုင်သည်။
+- [ ] L12–L13: မူလ milestones၊ tracker၊ evidence links တွေကို သင်ယူပြီးမှ update လုပ်ထားသည်။
+
+တစ်ဆင့်ချင်း ပြန်သင်ရန် **“BankLab L01 ကို basic syntax ကနေ မြန်မာလို တစ်ကြောင်းချင်းသင်ပါ။ ဥပမာတစ်ခုရေးပြီး အလုပ်လုပ်ပုံ၊ ဘာကြောင့်ဒီ syntax သုံးရသလဲ၊ debugger lab နဲ့ knowledge checks ပါစေ”** ဟု စပါ။ L00 environment check မပြီးသေးရင် အဲဒီကစပါ။ သင်ခန်းစာအဆုံးတိုင်း “ဘာရေးလိုက်လဲ၊ ဘာကြောင့်လိုလဲ၊ runtime မှာ ဘယ်သူက ဘယ်သူ့ကိုခေါ်လဲ၊ ဘယ် failure case ကို စမ်းပြီးပြီလဲ” ဆိုသော မေးခွန်းလေးခုကို မိမိစကားဖြင့် ဖြေပါ။
+
+<!-- banklab-incremental-course:end -->
