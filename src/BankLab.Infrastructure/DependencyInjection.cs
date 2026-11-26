@@ -1,5 +1,6 @@
 ﻿using BankLab.Application.Common.Interfaces;
 using BankLab.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,11 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<BankLabDbContext>());
+        services.AddIdentityCore<IdentityUser<Guid>>()
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<BankLabDbContext>();
+
+        services.AddScoped<BankLabDbContextInitializer>();
 
         return services;
     }
